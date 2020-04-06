@@ -1,0 +1,24 @@
+
+----- Date
+last_update 
+----- Location
+country_region-name  (ex. Switzerland or US or Italy)
+country_region-ID
+province_state-name  (ex. Vaud or California or Lombardia)
+province_state-ID
+town_name (ex. Lausanne or San Francisco or Milano)
+town_ID
+total_population (of the area, e.g. could also be province if town is missing)
+latitude
+longitude
+confirmed_cases   (hospitalised_with_symptoms + intensive_car + quarantine_at_home)
+new_confirmed_cases (last day variation)
+hospitalised_all
+hospitalised_with_symptoms
+quarantine_at_home
+intensive_care
+deaths
+recovered_out-of-hospital
+tested
+----- Mobility/Traffic
+average_velocity (e.g. km/hour, from GPS/Cells tracking)
