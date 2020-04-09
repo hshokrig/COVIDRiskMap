@@ -1,4 +1,4 @@
-
+#TODO update verbose
 ----- Date
 last_update 
 ----- Location
@@ -17,6 +17,7 @@ hospitalised_all
 hospitalised_with_symptoms
 quarantine_at_home
 intensive_care
+with_ventilation
 deaths
 recovered_out-of-hospital
 tested
