@@ -1,7 +1,6 @@
 #python3
 # -*- coding: utf-8 -*-
 
-
 #See data_schema.txt for more details
 standard_dict = {
     'last_update':None,
@@ -14,15 +13,16 @@ standard_dict = {
     'total_population':None,
     'latitude':None,
     'longitude':None,
-    'confirmed_cases':None,  #   (hospitalised_with_symptoms + intensive_care + quarantine_at_home)
-    'new_confirmed_cases':None,
-    'hospitalised_all':None,
-    'hospitalised_with_symptoms':None,
-    'quarantine_at_home':None,
-    'intensive_care':None,
-    'deaths':None,
-    'recovered_out-of-hospital':None,
-    'tested':None,
+    'confirmed_cases':None,                #cumulative =(hospitalised_with_symptoms + intensive_care + quarantine_at_home)
+    'new_confirmed_cases':None,            #current
+    'hospitalised_all':None,               #current
+    'hospitalised_with_symptoms':None,     #current
+    'quarantine_at_home':None,             #current
+    'intensive_care':None,                 #current
+    'with_ventilation':None,               #current
+    'deaths':None,                         #cumulative
+    'recovered_out-of-hospital':None,      #cumulative
+    'tested':None,                         #cumulative
     'average_velocity':None,
     }
 
@@ -72,6 +72,7 @@ def read_italy_official_situation(granularity='regioni'):
     
     print('Download')
     if granularity=='regioni':
+        #TODO replace file if existing
         filename = wget.download('https://raw.githubusercontent.com/pcm-dpc/COVID-19/master/dati-json/dpc-covid19-ita-regioni-latest.json')
     elif granularity=='provincie':
         sys.exit('granularity="provincie" not implemented!')
@@ -112,6 +113,73 @@ def read_italy_official_situation(granularity='regioni'):
     return standardised_data_list
 
 
+def read_switzerland_official_situation(granularity='cantons'):
+    '''
+    Read Offical Data from the Swiss Cantons and Principality of Liechtenstein (FL)
+    Downloaded from GitHub in csv format.
+    Currently only province_state ("cantons") level is implemented
+
+    Parameters
+    ----------
+        granularity: str
+            spational resolution, either "cantons" or TODO
+
+    Returns
+    -------
+        standardised_data_list: list
+            Data at the "regioni" or "provincie" level
+
+
+    TODO |  new_hosp        | new hospitalisations since last date | Number     | Irrespective of canton of residence |
+    '''
+
+    import json,sys,wget
+    from copy import deepcopy
+    import pandas as pd
+
+    print('Download')
+    if granularity=='cantons':
+        #TODO replace file if existing
+        filename = wget.download('https://raw.githubusercontent.com/openZH/covid_19/master/COVID19_Fallzahlen_CH_total_v2.csv')
+        filename_demographics = wget.download('https://raw.githubusercontent.com/daenuprobst/covid19-cases-switzerland/master/demographics.csv')
+    else:
+        sys.exit('granularity {} not recognised'.format(granularity))
+    
+    data = pd.read_csv(filename)
+    demographics_data = pd.read_csv(filename_demographics)
+    last_date = data['date'].iloc[-1*(26*2+1)] 
+    current_data = data.loc[data['date'] == last_date]
+    #TODO implement a function that finds the most recent data where there is data for each canton
+
+
+    standardised_data_list = []
+    for index, row in current_data.iterrows():
+        row_demographics = demographics_data.loc[demographics_data.Canton==row['abbreviation_canton_and_fl']]
+        data_dict = deepcopy(standard_dict)
+        data_dict['last_update'] = last_date
+        data_dict['country_region-name'] = 'CH'
+        data_dict['province_state-name'] = row['abbreviation_canton_and_fl'] # TODO implement cantons dict 
+        data_dict['province_state-ID'] = row['abbreviation_canton_and_fl']
+        if granularity=='cantons':
+            data_dict['total_population'] = row_demographics['Population']
+        else:
+            sys.exit('granularity={} not implemented!'.format(granularity))
+        data_dict['latitude'] = None
+        data_dict['longitude'] = None
+        data_dict['confirmed_cases'] = row['ncumul_conf']
+    #TODO    data_dict['hospitalised_all'] = county_dict['totale_ospedalizzati']
+    #TODO    data_dict['hospitalised_with_symptoms'] = county_dict['ricoverati_con_sintomi']
+    #TODO    data_dict['quarantine_at_home'] = county_dict['isolamento_domiciliare']
+        data_dict['intensive_care'] = row['current_icu']
+        data_dict['with_ventilation'] = row['current_vent']
+    #TODO    data_dict['new_confirmed_cases'] = county_dict['variazione_totale_positivi']
+        data_dict['deaths'] = row['ncumul_deceased']
+        data_dict['recovered_out-of-hospital'] = row['ncumul_released']
+        data_dict['tested'] = row['ncumul_tested']
+        data_dict['average_velocity'] = None
+        standardised_data_list.append(data_dict)
+    return standardised_data_list
+
 def environmental_risk_factor_basicgasmodel(rho_eff_contagious,sigma=4,v_avg=1.157):
     '''
     Function to compute the environmental risk factor
@@ -140,13 +208,16 @@ def environmental_risk_factor_basicgasmodel(rho_eff_contagious,sigma=4,v_avg=1.1
 
 if __name__ == "__main__":
     print('Example - Italy Data')
-    data_list = read_italy_official_situation()
-    print('\n')
-    l = []
-    for data_dict in data_list:
-        rho_eff_contagious = data_dict['confirmed_cases']/float(data_dict['total_population'])
-        risk = environmental_risk_factor_basicgasmodel(rho_eff_contagious,sigma=4,v_avg=1.157)
-        l.append([data_dict['province_state-name'],risk])
-        print('{} Environmental Risk Factor= {:f}'.format(data_dict['province_state-name'],risk))
-    print('-----\nSorting\n-----')
-    [print('{}: ERF={:f}'.format(i[0],i[1])) for i in sorted(l, key = lambda x: x[1])]
+    def run_example(data_list):
+        print('\n')
+        l = []
+        for data_dict in data_list:
+            rho_eff_contagious = data_dict['confirmed_cases']/float(data_dict['total_population'])
+            risk = environmental_risk_factor_basicgasmodel(rho_eff_contagious,sigma=4,v_avg=1.157)
+            l.append([data_dict['province_state-name'],risk])
+            print('{} Environmental Risk Factor= {:f}'.format(data_dict['province_state-name'],risk))
+        print('-----\nSorting\n-----')
+        [print('{}: ERF={:f}'.format(i[0],i[1])) for i in sorted(l, key = lambda x: x[1])]
+    
+    run_example(read_italy_official_situation())
+    run_example(read_switzerland_official_situation())
